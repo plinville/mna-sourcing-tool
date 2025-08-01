@@ -43,11 +43,15 @@ else:
         if st.button("Submit Feedback"):
             if feedback_text.strip():
                 analysis = model.analyze_feedback(feedback_text)
-                st.write("📝 GPT Feedback:", analysis)
-                st.write("📦 Submitting feedback for ID:", candidate['id'])
-                db.update_feedback(candidate['id'], analysis)
-                st.success("Feedback submitted and saved.")
-                st.rerun()
+
+                if "rate limit" in analysis.lower():
+                    st.error("⚠️ GPT-4 rate limit hit. Please wait a minute and try again.")
+                else:
+                    st.write("📝 GPT Feedback:", analysis)
+                    st.write("📦 Submitting feedback for ID:", candidate['id'])
+                    db.update_feedback(candidate['id'], analysis)
+                    st.success("Feedback submitted and saved.")
+                    st.rerun()
             else:
                 st.warning("Please write some feedback before submitting.")
 
