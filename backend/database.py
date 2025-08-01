@@ -30,10 +30,12 @@ class CandidateDatabase:
         df_filtered.to_sql("candidates", self.conn, if_exists="append", index=False)
 
     def get_unreviewed_candidates(self):
-        query = "SELECT * FROM candidates WHERE feedback IS NULL OR TRIM(feedback) = '' LIMIT 1"
+        query = "SELECT * FROM candidates WHERE feedback IS NULL OR feedback = '' OR TRIM(feedback) = '' LIMIT 1"
         return pd.read_sql_query(query, self.conn)
 
     def update_feedback(self, candidate_id, feedback):
+        # Ensure candidate_id is a native Python int
+        candidate_id = int(candidate_id)
         self.conn.execute(
             "UPDATE candidates SET feedback = ? WHERE id = ?",
             (feedback, candidate_id)
