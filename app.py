@@ -1,38 +1,47 @@
 import streamlit as st
-from scraper import scrape_candidates
+import pandas as pd
 from backend.database import CandidateDatabase
 from backend.feedback_model import FeedbackModel
 
-st.title("M&A Sourcing Assistant")
+# Initialize database and feedback model
+db = CandidateDatabase("candidates.db")
+model = FeedbackModel()
 
-st.sidebar.header("Search Parameters")
-keywords = st.sidebar.text_input("Keywords", "pediatric therapy, adolescent therapy")
-num_results = st.sidebar.slider("Number of results", 5, 50, 10)
+st.set_page_config(page_title="M&A Sourcing Tool", layout="wide")
+st.title("M&A Acquisition Candidate Review")
 
-if "feedback_model" not in st.session_state:
-    st.session_state.feedback_model = FeedbackModel()
-if "db" not in st.session_state:
-    st.session_state.db = CandidateDatabase("data/candidates.db")
+# Load unreviewed candidates
+candidates = db.get_unreviewed_candidates()
 
-if st.sidebar.button("Run Search"):
-    candidates = scrape_candidates(keywords, num_results)
-    for c in candidates:
-        st.session_state.db.insert_candidate(c)
-    st.experimental_rerun()
-
-st.subheader("Review Candidates")
-candidates = st.session_state.db.get_unreviewed()
-if not candidates:
+if candidates.empty:
     st.info("No unreviewed candidates found.")
 else:
-    for c in candidates:
-        with st.expander(c['name']):
-            st.markdown(f"**URL**: [{c['url']}]({c['url']})")
-            st.markdown(f"**Snippet**: {c['snippet']}")
-            feedback = st.radio("Feedback", ["Good Fit", "Maybe", "Not a Fit"], key=c['url'])
-            reason = st.text_area("Reason for your feedback", key=c['url']+"_reason")
-            if st.button("Submit Feedback", key=c['url']+"_submit"):
-                st.session_state.db.update_feedback(c['url'], feedback, reason)
-                st.session_state.feedback_model.add_feedback(c['snippet'], feedback)
-                st.success("Feedback submitted.")
-                st.experimental_rerun()
+    index = st.number_input("Candidate index", min_value=0, max_value=len(candidates)-1, step=1)
+    row = candidates.iloc[index]
+
+    st.subheader(f"Candidate: {row['name']}")
+    st.write(f"**Website:** [{row['url']}]({row['url']})")
+    st.write(f"**Description:** {row['description']}")
+    st.write(f"**Relevance Score:** {row['score']:.2f}")
+
+    feedback = st.radio("Is this a good fit?", ["Unreviewed", "Yes", "Maybe", "No"])
+
+    custom_comment = st.text_area("Add comments or reasoning here (optional):", height=150)
+
+    if st.button("Submit Feedback"):
+        if feedback == "Unreviewed":
+            st.warning("Please select a feedback option.")
+        else:
+            ai_summary = model.analyze(custom_comment) if custom_comment.strip() else ""
+            db.update_feedback(
+                candidate_id=row["id"],
+                feedback=feedback,
+                comments=custom_comment,
+                ai_summary=ai_summary
+            )
+            st.success("Feedback submitted!")
+            st.experimental_rerun()
+
+# Optional: show full table in expandable section
+with st.expander("See all unreviewed candidates"):
+    st.dataframe(candidates.drop(columns=["id"]))
