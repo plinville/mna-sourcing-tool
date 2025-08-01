@@ -8,7 +8,7 @@ class FeedbackModel:
             raise ValueError("OPENAI_API_KEY environment variable not set.")
         openai.api_key = self.api_key
 
-    def analyze(self, feedback_text):
+    def analyze_feedback(self, feedback_text):
         response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[
