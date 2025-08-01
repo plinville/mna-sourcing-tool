@@ -3,45 +3,36 @@ import pandas as pd
 from backend.database import CandidateDatabase
 from backend.feedback_model import FeedbackModel
 
-# Initialize database and feedback model
+# Initialize database and model
 db = CandidateDatabase("candidates.db")
 model = FeedbackModel()
 
-st.set_page_config(page_title="M&A Sourcing Tool", layout="wide")
-st.title("M&A Acquisition Candidate Review")
+st.title("M&A Sourcing Tool")
+st.write("Review acquisition candidates and provide feedback to improve results.")
 
-# Load unreviewed candidates
-candidates = db.get_unreviewed_candidates()
+# Load unreviewed candidates and convert to DataFrame
+candidates_raw = db.get_unreviewed_candidates()
+candidates = pd.DataFrame(candidates_raw, columns=["id", "name", "website", "description"])
 
 if candidates.empty:
     st.info("No unreviewed candidates found.")
 else:
-    index = st.number_input("Candidate index", min_value=0, max_value=len(candidates)-1, step=1)
-    row = candidates.iloc[index]
+    selected_index = st.selectbox("Select a candidate to review:", candidates.index, format_func=lambda i: candidates.loc[i, "name"])
+    selected = candidates.loc[selected_index]
 
-    st.subheader(f"Candidate: {row['name']}")
-    st.write(f"**Website:** [{row['url']}]({row['url']})")
-    st.write(f"**Description:** {row['description']}")
-    st.write(f"**Relevance Score:** {row['score']:.2f}")
+    st.subheader(selected["name"])
+    st.markdown(f"[Visit Website]({selected['website']})")
+    st.write(selected["description"])
 
-    feedback = st.radio("Is this a good fit?", ["Unreviewed", "Yes", "Maybe", "No"])
-
-    custom_comment = st.text_area("Add comments or reasoning here (optional):", height=150)
+    feedback_text = st.text_area("Your feedback on this company:", height=150)
 
     if st.button("Submit Feedback"):
-        if feedback == "Unreviewed":
-            st.warning("Please select a feedback option.")
+        if feedback_text.strip() == "":
+            st.warning("Please enter feedback before submitting.")
         else:
-            ai_summary = model.analyze(custom_comment) if custom_comment.strip() else ""
-            db.update_feedback(
-                candidate_id=row["id"],
-                feedback=feedback,
-                comments=custom_comment,
-                ai_summary=ai_summary
-            )
-            st.success("Feedback submitted!")
-            st.experimental_rerun()
+            db.set_feedback(selected["id"], feedback_text)
+            st.success("Feedback submitted.")
 
-# Optional: show full table in expandable section
-with st.expander("See all unreviewed candidates"):
-    st.dataframe(candidates.drop(columns=["id"]))
+            ai_response = model.analyze_feedback(feedback_text)
+            st.markdown("### AI Interpretation:")
+            st.write(ai_response)
