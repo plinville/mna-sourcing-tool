@@ -1,22 +1,44 @@
 import pandas as pd
 from duckduckgo_search import DDGS
-import datetime
-from backend.database import CandidateDatabase
+from sentence_transformers import SentenceTransformer, util
+import logging
 
-def search_and_store_candidates(keywords, db: CandidateDatabase, limit=10):
-    query = keywords.strip()
-    results = []
+logging.basicConfig(level=logging.INFO)
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+
+def search_and_store_candidates(keywords, db, limit=5):
+    """
+    Perform a web search using DuckDuckGo and store candidate information in the database.
+    """
+    query = keywords
+    logging.info(f"Searching for: {query}")
 
     with DDGS() as ddgs:
-        for r in ddgs.text(query, max_results=limit):
-            results.append({
-                "name": r.get("title", ""),
-                "website": r.get("href", ""),
-                "description": r.get("body", ""),
-                "retrieved_at": datetime.datetime.utcnow().isoformat(),
-                "feedback": None,
-                "ai_summary": None
-            })
+        results = ddgs.text(query, max_results=limit)
+        data = []
+        for r in results:
+            name = r.get("title") or ""
+            website = r.get("href") or ""
+            summary = r.get("body") or ""
+            if website:
+                data.append({
+                    "name": name,
+                    "website": website,
+                    "summary": summary
+                })
 
-    df = pd.DataFrame(results)
-    db.insert_candidates(df)
+    df = pd.DataFrame(data)
+
+    # Ensure required columns are present
+    for col in ["name", "website", "summary"]:
+        if col not in df.columns:
+            df[col] = ""
+
+    # Drop duplicates
+    df = df.drop_duplicates(subset="website")
+
+    logging.info(f"Scraped {len(df)} candidates")
+    if not df.empty:
+        db.insert_candidates(df)
