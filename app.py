@@ -21,7 +21,7 @@ if not st.session_state.keywords_submitted:
         if st.session_state.keywords.strip():
             # Run the scraper for 5 results using provided keywords
             from backend.scraper import search_and_store_candidates
-            search_and_store_candidates(st.session_state.keywords, num_results=5)
+            search_and_store_candidates(st.session_state.keywords, db, limit=5)
             st.session_state.keywords_submitted = True
             st.experimental_rerun()
         else:
