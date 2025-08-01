@@ -1,9 +1,10 @@
 import streamlit as st
+import pandas as pd
 from backend.database import CandidateDatabase
 from backend.feedback_model import FeedbackModel
 from backend.scraper import search_and_store_candidates
 
-# Use a new database file to avoid old schema conflicts
+# Load database and feedback model
 db = CandidateDatabase("candidates_v2.db")
 model = FeedbackModel()
 
@@ -42,8 +43,15 @@ else:
         if st.button("Submit Feedback"):
             if feedback_text.strip():
                 analysis = model.analyze_feedback(feedback_text)
+                st.write("📝 GPT Feedback:", analysis)
+                st.write("📦 Submitting feedback for ID:", candidate['id'])
                 db.update_feedback(candidate['id'], analysis)
                 st.success("Feedback submitted and saved.")
                 st.rerun()
             else:
                 st.warning("Please write some feedback before submitting.")
+
+    # Debug: Show full table
+    st.divider()
+    st.subheader("📊 Debug: All candidates in DB")
+    st.dataframe(pd.read_sql_query("SELECT * FROM candidates", db.conn))
