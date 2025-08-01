@@ -44,22 +44,26 @@ else:
         if st.button("Submit Feedback"):
             if feedback_text.strip():
                 result = model.analyze_feedback(feedback_text)
-                analysis = result["content"]
-                model_used = result["model_used"]
 
-                if model_used == "error":
-                    st.error(f"⚠️ AI feedback failed: {analysis}")
-                elif model_used == "gpt-3.5-turbo":
-                    st.warning("⚠️ GPT-4o was unavailable — response generated using GPT-3.5.")
-                    st.write("📝 GPT Feedback:", analysis)
-                    db.update_feedback(candidate['id'], analysis)
-                    st.success("Feedback submitted and saved.")
-                    st.rerun()
+                if not isinstance(result, dict) or "content" not in result or "model_used" not in result:
+                    st.error("⚠️ Unexpected response from feedback model.")
                 else:
-                    st.write("📝 GPT Feedback:", analysis)
-                    db.update_feedback(candidate['id'], analysis)
-                    st.success("Feedback submitted and saved.")
-                    st.rerun()
+                    analysis = result["content"]
+                    model_used = result["model_used"]
+
+                    if model_used == "error":
+                        st.error(f"⚠️ AI feedback failed: {analysis}")
+                    elif model_used == "gpt-3.5-turbo":
+                        st.warning("⚠️ GPT-4o was unavailable — response generated using GPT-3.5.")
+                        st.write("📝 GPT Feedback:", analysis)
+                        db.update_feedback(candidate['id'], analysis)
+                        st.success("Feedback submitted and saved.")
+                        st.rerun()
+                    else:
+                        st.write("📝 GPT Feedback:", analysis)
+                        db.update_feedback(candidate['id'], analysis)
+                        st.success("Feedback submitted and saved.")
+                        st.rerun()
             else:
                 st.warning("Please write some feedback before submitting.")
 
