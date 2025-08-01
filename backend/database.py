@@ -1,4 +1,5 @@
 import sqlite3
+import pandas as pd
 
 class CandidateDatabase:
     def __init__(self, db_path="candidates.db"):
@@ -6,28 +7,29 @@ class CandidateDatabase:
         self.create_table()
 
     def create_table(self):
-        self.conn.execute("""
+        self.conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS candidates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
                 website TEXT,
-                description TEXT,
+                summary TEXT,
                 feedback TEXT
             )
-        """)
-        self.conn.commit()
+            """
+        )
 
-    def get_unreviewed_candidates(self):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT id, name, website, description FROM candidates WHERE feedback IS NULL")
-        return cursor.fetchall()
+    def insert_candidates(self, df):
+        if df.empty:
+            return
+        df.to_sql("candidates", self.conn, if_exists="append", index=False)
+
+    def get_unreviewed_candidates(self, limit=1):
+        query = "SELECT * FROM candidates WHERE feedback IS NULL LIMIT ?"
+        return pd.read_sql_query(query, self.conn, params=(limit,))
 
     def update_feedback(self, candidate_id, feedback):
-        cursor = self.conn.cursor()
-        cursor.execute("UPDATE candidates SET feedback = ? WHERE id = ?", (feedback, candidate_id))
-        self.conn.commit()
-
-    def add_candidate(self, name, website, description):
-        cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO candidates (name, website, description) VALUES (?, ?, ?)", (name, website, description))
+        self.conn.execute(
+            "UPDATE candidates SET feedback = ? WHERE id = ?", (feedback, candidate_id)
+        )
         self.conn.commit()
