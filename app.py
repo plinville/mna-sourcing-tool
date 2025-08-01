@@ -3,7 +3,7 @@ from backend.database import CandidateDatabase
 from backend.feedback_model import FeedbackModel
 from backend.scraper import search_and_store_candidates
 
-# Use a new DB to avoid schema errors
+# Use a new database file to avoid old schema conflicts
 db = CandidateDatabase("candidates_v2.db")
 model = FeedbackModel()
 
@@ -23,7 +23,7 @@ if not st.session_state.keywords_submitted:
         if st.session_state.keywords.strip():
             search_and_store_candidates(st.session_state.keywords, db, limit=5)
             st.session_state.keywords_submitted = True
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.warning("Please enter keywords to begin.")
 else:
@@ -44,6 +44,6 @@ else:
                 analysis = model.analyze_feedback(feedback_text)
                 db.update_feedback(candidate['id'], analysis)
                 st.success("Feedback submitted and saved.")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.warning("Please write some feedback before submitting.")
