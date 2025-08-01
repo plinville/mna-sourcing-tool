@@ -40,34 +40,31 @@ else:
         st.write(f"**Summary:** {candidate['summary']}")
 
         feedback_text = st.text_area("Why is this company a good or bad fit?")
+        status = st.radio("Status:", ["approved", "rejected", "unsure"])
 
         if st.button("Submit Feedback"):
             if feedback_text.strip():
                 result = model.analyze_feedback(feedback_text)
 
-                if not isinstance(result, dict) or "content" not in result or "model_used" not in result:
+                if not isinstance(result, dict) or "content" not in result:
                     st.error("⚠️ Unexpected response from feedback model.")
                 else:
                     analysis = result["content"]
-                    model_used = result["model_used"]
-
-                    if model_used == "error":
-                        st.error(f"⚠️ AI feedback failed: {analysis}")
-                    elif model_used == "gpt-3.5-turbo":
-                        st.warning("⚠️ GPT-4o was unavailable — response generated using GPT-3.5.")
-                        st.write("📝 GPT Feedback:", analysis)
-                        db.update_feedback(candidate['id'], analysis)
-                        st.success("Feedback submitted and saved.")
-                        st.rerun()
-                    else:
-                        st.write("📝 GPT Feedback:", analysis)
-                        db.update_feedback(candidate['id'], analysis)
-                        st.success("Feedback submitted and saved.")
-                        st.rerun()
+                    db.update_feedback(candidate['id'], analysis, status)
+                    st.success(f"Feedback saved with status: {status}.")
+                    st.rerun()
             else:
-                st.warning("Please write some feedback before submitting.")
+                st.warning("Please provide feedback text before submitting.")
 
-    # Debug: Show full table
+    # Step 3: Display approved candidates
     st.divider()
-    st.subheader("📊 Debug: All candidates in DB")
-    st.dataframe(pd.read_sql_query("SELECT * FROM candidates", db.conn))
+    st.subheader("✅ Approved Candidates")
+    approved_df = db.get_approved_candidates()
+    if not approved_df.empty:
+        st.dataframe(approved_df[["name", "website", "summary"]])
+    else:
+        st.write("No approved candidates yet.")
+
+    # Optional: Full database view (for debugging)
+    with st.expander("📊 Debug: All candidates in DB"):
+        st.dataframe(db.get_all_candidates())
