@@ -8,7 +8,7 @@ from backend.scraper import search_and_store_candidates
 db = CandidateDatabase("candidates_v2.db")
 model = FeedbackModel()
 
-st.title("M&A Acquisition Candidate Evaluator")
+st.title("🤝 M&A Acquisition Candidate Evaluator")
 
 # Initialize session state
 if "keywords_submitted" not in st.session_state:
@@ -28,9 +28,10 @@ if not st.session_state.keywords_submitted:
         else:
             st.warning("Please enter keywords to begin.")
 else:
+    # Step 2: Review candidates
     candidates = db.get_unreviewed_candidates()
     if candidates.empty:
-        st.info("No unreviewed candidates found.")
+        st.info("✅ No unreviewed candidates found.")
     else:
         candidate = candidates.iloc[0]
         st.subheader("Review Candidate")
@@ -42,13 +43,20 @@ else:
 
         if st.button("Submit Feedback"):
             if feedback_text.strip():
-                analysis = model.analyze_feedback(feedback_text)
+                result = model.analyze_feedback(feedback_text)
+                analysis = result["content"]
+                model_used = result["model_used"]
 
-                if "rate limit" in analysis.lower():
-                    st.error("⚠️ GPT-4 rate limit hit. Please wait a minute and try again.")
+                if model_used == "error":
+                    st.error(f"⚠️ AI feedback failed: {analysis}")
+                elif model_used == "gpt-3.5-turbo":
+                    st.warning("⚠️ GPT-4o was unavailable — response generated using GPT-3.5.")
+                    st.write("📝 GPT Feedback:", analysis)
+                    db.update_feedback(candidate['id'], analysis)
+                    st.success("Feedback submitted and saved.")
+                    st.rerun()
                 else:
                     st.write("📝 GPT Feedback:", analysis)
-                    st.write("📦 Submitting feedback for ID:", candidate['id'])
                     db.update_feedback(candidate['id'], analysis)
                     st.success("Feedback submitted and saved.")
                     st.rerun()
