@@ -1,4 +1,7 @@
 streamlit
+pandas
+requests
+beautifulsoup4
 duckduckgo_search
 sentence-transformers
-pandas
+openai
